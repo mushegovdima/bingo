@@ -1,0 +1,49 @@
+// ─── Design tokens (global — CSS variables, consumed by all modules) ──────────
+:root {
+  // Brand — blue-indigo, less purple, slightly muted
+  --color-primary:   #4f6ef2;
+  --color-secondary: #7c66d0;
+
+  // Semantic — toned down ~10%
+  --color-coin:    #b45309;
+  --color-success: #15803d;
+  --color-danger:  #c82424;
+  --color-warning: #b45309;
+
+  // Surfaces — cool-tinted
+  --color-bg:      #f0f4f9;
+  --color-surface: #ffffff;
+  --color-border:  #dce3ee;
+
+  // Text — navy-slate direction
+  --color-text:           #0d1829;
+  --color-text-secondary: #2c3e52;
+  --color-text-muted:     #5c6f85;
+  --color-text-subtle:    #8fa0b4;
+
+  // Shadows
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.08);
+}
+
+// ─── Base ─────────────────────────────────────────────────────────────────────
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+// ─── Layout ───────────────────────────────────────────────────────────────────
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}

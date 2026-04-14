@@ -1,0 +1,256 @@
+# ==============================================================================
+# .github/workflows/deploy.yml — CI/CD pipeline for Bingo
+#
+# Triggers:
+#   - Пуш тега вида v*.*.* (например: v1.0.0, v2.3.1)
+#     git tag v1.0.0 && git push origin v1.0.0
+#   - Ручной запуск через GitHub UI (Actions → Run workflow)
+#
+# Pipeline steps:
+#   1. Build & test Go backend
+#   2. Build frontend (Vite/React) static assets
+#   3. SSH into the production server and:
+#      a. Upload the new Go binary + migrator binary
+#      b. Upload prod.env (generated from GitHub Secrets)
+#      c. Upload frontend static files
+#      d. Run database migrations
+#      e. Restart the systemd service
+#
+# Required GitHub Secrets (Settings → Secrets and variables → Actions):
+#   SSH_HOST           — server IP or hostname
+#   SSH_USER           — SSH user (typically "bingo" or a deploy user)
+#   SSH_PRIVATE_KEY    — private SSH key (the public key must be in ~/.ssh/authorized_keys on server)
+#   DB_CONNECTION_STRING — postgres://bingo:<password>@localhost:5432/bingo
+#   TG_BOT_TOKEN       — Telegram bot token
+#   SESSION_SECRET     — random 32+ byte string
+#   CLIENT_URL         — https://your.domain.com  (used by backend for CORS)
+#   API_URL            — :8080  (backend listen address, internal)
+#   VITE_API_BASE_URL  — https://your.domain.com/api  (used by frontend at build time)
+# ==============================================================================
+
+name: Deploy to Production
+
+on:
+  # Ручной запуск из вкладки Actions в GitHub
+  workflow_dispatch:
+
+  # Автоматический запуск при пуше тега вида v1.2.3
+  push:
+    tags:
+      - "v*.*.*"
+
+# Cancel any in-progress deployment for the same ref
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  # ── Job 1: Run backend tests ──────────────────────────────────────────────
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Run tests
+        working-directory: backend
+        run: go test ./...
+
+  # ── Job 2: Build Go binaries ──────────────────────────────────────────────
+  build-backend:
+    name: Build Backend
+    needs: test-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      # Build the main API binary for Linux/amd64.
+      # CGO_ENABLED=0 produces a fully static binary — no libc dependency on the server.
+      - name: Build API binary
+        working-directory: backend
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: go build -ldflags="-s -w" -o bin/api ./cmd/api
+
+      # Build the migrator binary separately so we can run migrations before
+      # restarting the API (zero-downtime migration pattern).
+      - name: Build migrator binary
+        working-directory: backend
+        env:
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: "0"
+        run: go build -ldflags="-s -w" -o bin/migrator ./cmd/migrator
+
+      # Upload binaries as an artifact so the deploy job can access them
+      - name: Upload backend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-binaries
+          path: |
+            backend/bin/api
+            backend/bin/migrator
+          retention-days: 1
+
+  # ── Job 3: Build frontend ─────────────────────────────────────────────────
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      # VITE_API_BASE_URL tells the React app where to send API calls.
+      # At runtime nginx rewrites /api/* → backend, so the value is https://domain/api
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+        run: pnpm run build
+
+      - name: Upload frontend artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 1
+
+  # ── Job 4: Deploy to server ───────────────────────────────────────────────
+  deploy:
+    name: Deploy
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    environment: production   # optional: requires manual approval in GitHub UI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Download the built artifacts from previous jobs
+      - name: Download backend binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-binaries
+          path: artifacts/backend
+
+      - name: Download frontend dist
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: artifacts/frontend
+
+      # Set executable bit on binaries (lost during artifact upload)
+      - name: Make binaries executable
+        run: chmod +x artifacts/backend/api artifacts/backend/migrator
+
+      # Write the prod.env file from GitHub Secrets.
+      # This file is uploaded to /etc/bingo/prod.env on the server and is
+      # read by the systemd service via EnvironmentFile=.
+      - name: Generate prod.env
+        run: |
+          cat > artifacts/prod.env <<EOF
+          DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}
+          TG_BOT_TOKEN=${{ secrets.TG_BOT_TOKEN }}
+          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          SESSION_TTL_MINUTES=43200
+          CLIENT_URL=${{ secrets.CLIENT_URL }}
+          API_URL=${{ secrets.API_URL }}
+          EOF
+
+      # Install the SSH private key so scp/ssh commands work
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # Add the server to known_hosts to avoid interactive prompt
+      - name: Add server to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      # ── Upload files to server ───────────────────────────────────────────
+      - name: Upload binaries
+        run: |
+          scp artifacts/backend/api     ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/bingo/api.new
+          scp artifacts/backend/migrator ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/bingo/migrator
+
+      - name: Upload prod.env
+        run: |
+          scp artifacts/prod.env ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/etc/bingo/prod.env
+
+      - name: Upload frontend static files
+        run: |
+          # Sync the build output to the nginx web root.
+          # --delete removes files that no longer exist in the build.
+          rsync -az --delete artifacts/frontend/ \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/var/www/bingo/
+
+      # ── Remote deployment steps (run on the server via SSH) ──────────────
+      - name: Run migrations & restart service
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
+            set -euo pipefail
+
+            echo "--- Running database migrations ---"
+            # The migrator reads DB_CONNECTION_STRING from the prod.env file.
+            /opt/bingo/migrator -env prod -config /etc/bingo/prod.env
+
+            echo "--- Swapping API binary (atomic rename) ---"
+            # Move the new binary into place. Using mv is atomic on the same filesystem,
+            # so the running process is not affected until systemd restarts it.
+            mv /opt/bingo/api.new /opt/bingo/api
+            chmod +x /opt/bingo/api
+
+            echo "--- Restarting bingo-api service ---"
+            systemctl restart bingo-api
+
+            echo "--- Verifying service is running ---"
+            # Wait up to 10 seconds for the service to be active
+            for i in $(seq 1 10); do
+              if systemctl is-active --quiet bingo-api; then
+                echo "Service is running."
+                break
+              fi
+              echo "  waiting... ($i/10)"
+              sleep 1
+            done
+
+            systemctl is-active --quiet bingo-api || {
+              echo "ERROR: Service failed to start. Check logs: journalctl -u bingo-api -n 50"
+              exit 1
+            }
+
+            echo "--- Reloading nginx (in case config changed) ---"
+            nginx -t && systemctl reload nginx
+
+            echo "--- Deploy complete ---"
+          ENDSSH

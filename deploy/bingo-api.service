@@ -1,0 +1,48 @@
+# ==============================================================================
+# deploy/bingo-api.service — systemd unit for the Bingo Go API
+#
+# Installed to: /etc/systemd/system/bingo-api.service
+# Manage with:
+#   systemctl start|stop|restart|status bingo-api
+#   journalctl -u bingo-api -f   (live logs)
+# ==============================================================================
+
+[Unit]
+Description=Bingo API Server
+# Start only after the network and PostgreSQL are ready
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=bingo
+Group=bingo
+
+# Working directory — the binary and prod.env are expected here/at /etc/bingo
+WorkingDirectory=/opt/bingo
+
+# Load environment from the config file deployed by GitHub Actions.
+# This file contains DB_CONNECTION_STRING, TG_BOT_TOKEN, SESSION_SECRET, etc.
+EnvironmentFile=/etc/bingo/prod.env
+
+# Launch the API. -env prod tells the app to look for prod.env,
+# but since EnvironmentFile already exports everything as env vars,
+# the app reads them directly via cleanenv.
+ExecStart=/opt/bingo/api -env prod -config /etc/bingo/prod.env
+
+# Restart automatically on crash; wait 5 s between restarts
+Restart=on-failure
+RestartSec=5s
+
+# Limit open file descriptors (good practice for network servers)
+LimitNOFILE=65536
+
+# Security hardening — restrict the service's filesystem access
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/bingo /etc/bingo
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS reward_claims;
+DROP TABLE IF EXISTS rewards;
+DROP TABLE IF EXISTS task_submissions;
+DROP TABLE IF EXISTS tasks;
+DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS season_members;
+DROP TABLE IF EXISTS season_events;
+DROP TABLE IF EXISTS seasons;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;

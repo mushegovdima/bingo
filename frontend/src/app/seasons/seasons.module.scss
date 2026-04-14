@@ -1,0 +1,97 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+/* Tile grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.875rem;
+
+  /* Last card stretches if it's alone in its row (odd total) */
+  > *:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Card overrides */
+.card {
+  cursor: pointer;
+  overflow: visible !important;
+  transition: box-shadow 0.2s ease, transform 0.15s ease !important;
+
+  &:hover {
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.12) !important;
+    transform: translateY(-3px);
+  }
+}
+
+.cardUnjoined {
+  cursor: default;
+  border: 1px dashed var(--color-primary) !important;
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface)) !important;
+}
+
+.cardHeader {
+  padding-bottom: 0;
+}
+
+.cardTitle {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: var(--color-text) !important;
+  line-height: 1.3;
+}
+
+.cardContent {
+  flex: 1;
+}
+
+.cardBalance {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-coin);
+  letter-spacing: -0.02em;
+}
+
+.cardFooter {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cardMeta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.cardAction {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.empty {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  padding: 2rem 0;
+  text-align: center;
+}
+
+

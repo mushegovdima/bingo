@@ -1,0 +1,158 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* ── Table toolbar ── */
+.tableToolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 180px;
+  max-width: 22rem;
+}
+
+.countLabel {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* ── Virtualized table ── */
+.usersTable {
+  height: min(800px, 70vh);
+  overflow: auto;
+  width: 100%;
+
+  :global(.table__resizable-container) {
+    min-width: 700px;
+    min-height: 100%;
+    overflow: auto;
+  }
+}
+
+/* ── Table cells ── */
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.userName {
+  font-weight: 500;
+  line-height: 1.2;
+  font-size: 0.875rem;
+  text-wrap: nowrap;
+}
+
+.userUsername {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.chipsRow {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: nowrap;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+/* ── Skeleton loading ── */
+.skeletonList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeletonRow {
+  height: 3.5rem;
+  border-radius: 0.5rem;
+}
+
+/* ── Modal body ── */
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-left: 0.2rem;
+  padding-right: 0.2rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+
+.rolesGroup {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Season detail ── */
+.detailSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.detailMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.detailTitle {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+/* ── Form row ── */
+.fieldRow {
+  display: flex;
+
+  > * {
+    flex: 1;
+  }
+
+  &Wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
