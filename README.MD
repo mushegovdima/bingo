@@ -36,6 +36,11 @@ go run ./cmd/migrator -env dev
 go run ./cmd/migrator -env dev -migrations-path ./internal/db/migrations
 ```
 
+### Бот в Telegram
+1. Создайте бота через @BotFather, получите токен.
+2. Установите `TG_BOT_TOKEN` в `.env`.
+3. В настройках бота укажите домен вашего приложения (например, `https://your.domain.com`) и разрешите Telegram Login Widget (для теста можно использовать сервис ngrok).
+
 ### Сервер
 
 ```bash
@@ -451,4 +456,11 @@ deploy/
   workflows/
     deploy.yml  — CI/CD pipeline (test → build → deploy)
 ```
+
+### TODO:
+- Сервис работы с telegram-ботом (уведомления и дополнительные)
+- Безшовная аутентификация и авторизация в случае открытия приложения в TelegramMiniApp
+- Добалвение метрики и трассировки приложения (prometheus + grafana)
+- Добавление Redis-Cache для развертывания в кластере
+
 
