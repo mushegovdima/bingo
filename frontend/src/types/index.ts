@@ -64,10 +64,15 @@ export interface Task {
 export interface TaskSubmission {
   id: number
   user_id: number
+  user_name?: string
   task_id: number
-  season_id: number
   status: TaskSubmissionStatus
-  created_at: string
+  comment: string
+  review_comment: string
+  reviewer_id?: number
+  reviewer_name?: string
+  submitted_at: string
+  reviewed_at?: string
 }
 
 export interface Reward {
@@ -87,6 +92,35 @@ export interface RewardClaim {
   season_id: number
   status: RewardClaimStatus
   created_at: string
+}
+
+export interface TemplateVar { key: string; label: string }
+
+export interface LeaderboardEntry {
+  position: number
+  user_id: number
+  name: string
+  username: string
+  photo_url?: string
+  balance: number
+  is_current: boolean
+}
+
+export interface Template {
+  id: number
+  codename: string
+  body: string
+  vars: TemplateVar[]
+  created_at: string
+  updated_at: string
+}
+
+export interface TemplateHistory {
+  id: number
+  template_id: number
+  body: string
+  changed_by: number
+  changed_at: string
 }
 
 // ─── Telegram Login Widget callback payload ───────────────────────────────────

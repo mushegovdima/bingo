@@ -1,26 +1,26 @@
 
 
 import { CardContent, CardRoot, SkeletonRoot } from '@heroui/react'
-import s from '@/styles/widgets.module.scss'
 import { useNavigate } from 'react-router-dom'
+import { useBalance } from '@/hooks/useBalance'
 
 interface Props {
-  coins: number
-  isLoading: boolean
   seasonId: number
 }
 
-/**
- * Большой виджет с текущим балансом Bingo Coin.
- */
-export function BalanceWidget({ coins, isLoading, seasonId }: Props) {
+export function BalanceWidget({ seasonId }: Props) {
   const navigate = useNavigate()
+  const { data: balance, isLoading } = useBalance(seasonId)
+  const coins = balance?.balance ?? 0
 
   return (
-    <CardRoot className={s.card} onClick={() => navigate(`/d/${seasonId}/balance`)}>
+    <CardRoot
+      className="bg-(--color-surface) border border-(--color-border) shadow-(--shadow-md) transition-[box-shadow,transform] duration-200 hover:shadow-(--shadow-xl) hover:-translate-y-1 cursor-default"
+      onClick={() => navigate(`/d/${seasonId}/balance`)}
+    >
       <CardContent className="p-6 flex flex-col gap-2 cursor-pointer">
-        <span className={s.label}>
-          Bingo Coin
+        <span className="text-xs font-semibold uppercase tracking-widest text-(--color-text-muted)">
+          Текущий баланс
         </span>
 
         {isLoading ? (
@@ -30,21 +30,16 @@ export function BalanceWidget({ coins, isLoading, seasonId }: Props) {
           </div>
         ) : (
           <div className="flex items-baseline gap-2">
-            <span
-              className={`text-6xl font-extrabold tabular-nums ${s.coinValue}`}
-            >
+            <span className="text-4xl sm:text-6xl font-extrabold tabular-nums text-(--color-coin)">
               {coins.toLocaleString('ru-RU')}
             </span>
-            <span
-              className={`text-3xl font-bold ${s.coinValue}`}
-              aria-hidden
-            >
-              KC
+            <span className="text-2xl sm:text-3xl font-bold text-(--color-coin)" aria-hidden>
+              баллов
             </span>
           </div>
         )}
 
-        <span className={s.footer}>текущий баланс</span>
+        <span className="text-xs text-(--color-text-subtle)">текущий баланс</span>
       </CardContent>
     </CardRoot>
   )

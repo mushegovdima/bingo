@@ -2,29 +2,27 @@
 
 import { CardContent, CardRoot, ProgressBarRoot, ProgressBarTrack, ProgressBarFill, SkeletonRoot } from '@heroui/react'
 import { THEME } from '@/lib/theme'
-import s from '@/styles/widgets.module.scss'
+import { useBalance } from '@/hooks/useBalance'
 
 interface Props {
-  coins: number
-  isLoading: boolean
+  seasonId: number
 }
 
-/**
- * Прогресс-бар: сколько KC осталось до главного приза.
- */
-export function ProgressWidget({ coins, isLoading }: Props) {
+export function ProgressWidget({ seasonId }: Props) {
+  const { data: balance, isLoading } = useBalance(seasonId)
+  const coins = balance?.balance ?? 0
   const { mainPrizeTarget, mainPrizeLabel } = THEME.progress
   const percentage = Math.min((coins / mainPrizeTarget) * 100, 100)
   const remaining = Math.max(mainPrizeTarget - coins, 0)
 
   return (
-    <CardRoot className={s.card}>
+    <CardRoot className="bg-(--color-surface) border border-(--color-border) shadow-(--shadow-md) transition-[box-shadow,transform] duration-200 hover:shadow-(--shadow-xl) hover:-translate-y-1 cursor-default">
       <CardContent className="p-6 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <span className={s.label}>
+          <span className="text-xs font-semibold uppercase tracking-widest text-(--color-text-muted)">
             До главного приза
           </span>
-          <span className={s.primaryText}>
+          <span className="text-(--color-primary) text-sm font-semibold">
             {mainPrizeLabel}
           </span>
         </div>
@@ -37,9 +35,9 @@ export function ProgressWidget({ coins, isLoading }: Props) {
             aria-label={`Прогресс до приза: ${Math.round(percentage)}%`}
             className="w-full"
           >
-            <ProgressBarTrack className={s.progressTrack}>
+            <ProgressBarTrack className="h-3 w-full rounded-full bg-(--color-border)">
               <ProgressBarFill
-                className={s.progressFill}
+                className="h-full rounded-full bg-(--color-primary) transition-[width] duration-300"
                 style={{ width: `${percentage}%` }}
               />
             </ProgressBarTrack>
@@ -50,20 +48,20 @@ export function ProgressWidget({ coins, isLoading }: Props) {
           {isLoading ? (
             <SkeletonRoot className="h-4 w-36 rounded" />
           ) : (
-            <span className={s.progressStats}>
+            <span className="text-(--color-text-muted) text-sm">
               {coins.toLocaleString('ru-RU')} /{' '}
-              {mainPrizeTarget.toLocaleString('ru-RU')} KC
+              {mainPrizeTarget.toLocaleString('ru-RU')} баллов
             </span>
           )}
 
           {!isLoading && remaining > 0 && (
-            <span className={s.progressRemaining}>
-              ещё {remaining.toLocaleString('ru-RU')} KC
+            <span className="text-(--color-text-subtle) text-xs">
+              ещё {remaining.toLocaleString('ru-RU')} баллов
             </span>
           )}
 
           {!isLoading && remaining === 0 && (
-            <span className={s.progressAchieved}>
+            <span className="text-(--color-success) font-semibold text-xs">
               Приз получен! 🎉
             </span>
           )}

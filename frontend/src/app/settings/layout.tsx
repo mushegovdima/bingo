@@ -1,10 +1,9 @@
-import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Outlet, useMatch, useNavigate } from 'react-router-dom'
 import { Tabs } from '@heroui/react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedPage } from '@/components/common/ProtectedPage'
-import s from './settings.module.scss'
 
-const TABS = { USERS: 'users', SEASONS: 'seasons' }
+const TABS = { USERS: 'users', TEMPLATES: 'templates', SEASONS: 'seasons' }
 
 /**
  * Shared layout for all /admin/* routes.
@@ -12,24 +11,27 @@ const TABS = { USERS: 'users', SEASONS: 'seasons' }
  */
 export default function AdminLayout() {
   const navigate = useNavigate()
-  const { pathname } = useLocation()
-  const selectedTab = pathname.includes('/seasons') ? TABS.SEASONS : TABS.USERS
+  const matchTemplates = useMatch('/admin/templates')
+  const matchSeasons = useMatch('/admin/seasons') || useMatch('/admin/seasons/:seasonId')
+
+  const selectedTab = matchTemplates ? TABS.TEMPLATES : matchSeasons ? TABS.SEASONS : TABS.USERS
 
   return (
     <ProtectedPage requireManager>
       <AppLayout>
-        <div className={s.page}>
+        <div className="flex flex-col gap-4">
           <Tabs
             variant="primary"
             selectedKey={selectedTab}
             onSelectionChange={(key) => navigate(`/admin/${key}`)}
           >
             <div className="flex gap-2 flex-wrap">
-              <h1 className={s.heading}>Настройки</h1>
+              <h1 className="m-0 text-2xl font-bold text-(--color-text)">Настройки</h1>
               <Tabs.ListContainer>
                 <Tabs.List>
                   <Tabs.Tab id={TABS.USERS}>Пользователи</Tabs.Tab>
-                  <Tabs.Tab id={TABS.SEASONS}>Кампании</Tabs.Tab>
+                  <Tabs.Tab id={TABS.SEASONS}>Сезоны</Tabs.Tab>
+                  <Tabs.Tab id={TABS.TEMPLATES}>Шаблоны уведомлений</Tabs.Tab>
                 </Tabs.List>
               </Tabs.ListContainer>
             </div>

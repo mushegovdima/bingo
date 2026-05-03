@@ -3,7 +3,6 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedPage } from '@/components/common/ProtectedPage'
 import { SeasonPicker } from '@/components/dashboard/SeasonPicker'
 import { useSeasonById } from '@/hooks/useSeasonById'
-import s from './dashboard.module.scss'
 
 /**
  * Shared layout for all /d/:seasonId/* routes.
@@ -23,7 +22,7 @@ export default function DashboardLayout() {
               <SeasonPicker currentSeasonId={seasonId} currentTitle={season.title} />
             )}
             {!isLoading && !season && (
-              <p className={s.noSeason}>Сезон не найден</p>
+              <p className="text-(--color-warning) text-sm mt-1">Сезон не найден</p>
             )}
           </div>
           <Outlet />

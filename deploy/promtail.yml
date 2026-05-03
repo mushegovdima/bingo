@@ -1,0 +1,45 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/promtail-positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project"]
+    relabel_configs:
+      # container name → label
+      - source_labels: [__meta_docker_container_name]
+        regex: /(.*)
+        target_label: container
+      # compose service name → label
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: service
+      # stdout / stderr stream → label
+      - source_labels: [__meta_docker_container_log_stream]
+        target_label: stream
+
+    pipeline_stages:
+      # Приложения пишут JSON через slog — парсим его
+      - json:
+          expressions:
+            level: level
+            msg: msg
+      # Выносим level в label для фильтрации в Grafana
+      - labels:
+          level:
+      # Используем time из JSON как timestamp лога
+      - timestamp:
+          source: time
+          format: RFC3339Nano
+          fallback_formats:
+            - RFC3339

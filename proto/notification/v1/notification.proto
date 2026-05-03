@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package notification.v1;
+import "buf/validate/validate.proto";
+
+option go_package = "go.mod/pb/notification/v1;notificationv1";
+
+// NotificationService sends notifications to users.
+service NotificationService {
+  // Send enqueues a notification for delivery.
+  rpc Send(SendNotificationRequest) returns (SendNotificationResponse);
+  // SendBulk enqueues the same message body for many recipients in a single unary call.
+  // The number of recipients per call is bounded server-side (max 500).
+  rpc SendBulk(SendBulkNotificationRequest) returns (SendBulkNotificationResponse);
+}
+
+// SendNotificationRequest is the request message for SendNotification.
+message SendNotificationRequest {
+  string id          = 1 [(buf.validate.field).string.uuid = true]; // unique ID for idempotency (e.g. UUID)
+  string type        = 2; // notification type (e.g. "welcome_message")
+  int64  user_id     = 3 [(buf.validate.field).int64.gt = 0]; // internal user ID (for outbox tracking)
+  int64  telegram_id = 4 [(buf.validate.field).int64.gt = 0]; // telegram user ID for delivery
+  string text        = 5 [(buf.validate.field).string.min_len = 1]; // text
+}
+
+message SendNotificationResponse {
+  string id = 1; // outbox entry ID (uuid)
+}
+
+// SendBulkNotificationRequest carries up to 500 independent notification requests
+// in a single unary call. Each item is a full SendNotificationRequest so recipients
+// can have personalised text and types.
+message SendBulkNotificationRequest {
+  repeated SendNotificationRequest notifications = 1 [
+    (buf.validate.field).repeated.min_items = 1,
+    (buf.validate.field).repeated.max_items = 500
+  ];
+}
+
+message SendBulkNotificationResponse {
+  repeated string ids = 1; // outbox entry IDs (uuids), same order as recipients
+}

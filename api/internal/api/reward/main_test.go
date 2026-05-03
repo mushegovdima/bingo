@@ -1,0 +1,292 @@
+package rewardapi_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"github.com/go-chi/chi/v5"
+	rewardapi "go.mod/internal/api/reward"
+	rewarddomain "go.mod/internal/domain/reward"
+	rewardservice "go.mod/internal/services/reward"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+type fakeRewardSvc struct {
+	createFn       func(ctx context.Context, req *rewardservice.CreateRewardRequest) (*rewarddomain.Reward, error)
+	updateFn       func(ctx context.Context, id int64, req *rewardservice.UpdateRewardRequest) (*rewarddomain.Reward, error)
+	deleteFn       func(ctx context.Context, id int64) error
+	getByIDFn      func(ctx context.Context, id int64) (*rewarddomain.Reward, error)
+	listBySeasonFn func(ctx context.Context, seasonID int64) ([]rewarddomain.Reward, error)
+}
+
+func (f *fakeRewardSvc) Create(ctx context.Context, req *rewardservice.CreateRewardRequest) (*rewarddomain.Reward, error) {
+	if f.createFn != nil {
+		return f.createFn(ctx, req)
+	}
+	return &rewarddomain.Reward{ID: 1}, nil
+}
+
+func (f *fakeRewardSvc) Update(ctx context.Context, id int64, req *rewardservice.UpdateRewardRequest) (*rewarddomain.Reward, error) {
+	if f.updateFn != nil {
+		return f.updateFn(ctx, id, req)
+	}
+	return &rewarddomain.Reward{ID: id}, nil
+}
+
+func (f *fakeRewardSvc) Delete(ctx context.Context, id int64) error {
+	if f.deleteFn != nil {
+		return f.deleteFn(ctx, id)
+	}
+	return nil
+}
+
+func (f *fakeRewardSvc) GetByID(ctx context.Context, id int64) (*rewarddomain.Reward, error) {
+	if f.getByIDFn != nil {
+		return f.getByIDFn(ctx, id)
+	}
+	return &rewarddomain.Reward{ID: id}, nil
+}
+
+func (f *fakeRewardSvc) ListBySeason(ctx context.Context, seasonID int64) ([]rewarddomain.Reward, error) {
+	if f.listBySeasonFn != nil {
+		return f.listBySeasonFn(ctx, seasonID)
+	}
+	return []rewarddomain.Reward{}, nil
+}
+
+func passThroughMW(next http.Handler) http.Handler { return next }
+
+func newRewardHandler(svc *fakeRewardSvc) http.Handler {
+	h := rewardapi.NewHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	r := chi.NewRouter()
+	r.Mount("/", h.Routes(passThroughMW))
+	return r
+}
+
+func rewardDo(t *testing.T, handler http.Handler, method, path string, body any) *httptest.ResponseRecorder {
+	t.Helper()
+	var reqBody io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		reqBody = bytes.NewReader(b)
+	}
+	r := httptest.NewRequest(method, path, reqBody)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	return w
+}
+
+func TestRewardHandler_List(t *testing.T) {
+	t.Run("returns 200 with rewards", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			listBySeasonFn: func(_ context.Context, _ int64) ([]rewarddomain.Reward, error) {
+				return []rewarddomain.Reward{{ID: 1}}, nil
+			},
+		})
+		w := rewardDo(t, handler, http.MethodGet, "/?season_id=1", nil)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 when season_id missing", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{})
+		w := rewardDo(t, handler, http.MethodGet, "/", nil)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 when season_id invalid", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{})
+		w := rewardDo(t, handler, http.MethodGet, "/?season_id=abc", nil)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 500 when service fails", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			listBySeasonFn: func(_ context.Context, _ int64) ([]rewarddomain.Reward, error) {
+				return nil, errors.New("db error")
+			},
+		})
+		w := rewardDo(t, handler, http.MethodGet, "/?season_id=1", nil)
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", w.Code)
+		}
+	})
+}
+
+func TestRewardHandler_Get(t *testing.T) {
+	t.Run("returns 200 with reward", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			getByIDFn: func(_ context.Context, id int64) (*rewarddomain.Reward, error) {
+				return &rewarddomain.Reward{ID: id}, nil
+			},
+		})
+		w := rewardDo(t, handler, http.MethodGet, "/3", nil)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 404 when not found", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			getByIDFn: func(_ context.Context, _ int64) (*rewarddomain.Reward, error) { return nil, nil },
+		})
+		w := rewardDo(t, handler, http.MethodGet, "/99", nil)
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 on invalid id", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{})
+		w := rewardDo(t, handler, http.MethodGet, "/abc", nil)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 500 when service fails", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			getByIDFn: func(_ context.Context, _ int64) (*rewarddomain.Reward, error) {
+				return nil, errors.New("db error")
+			},
+		})
+		w := rewardDo(t, handler, http.MethodGet, "/1", nil)
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", w.Code)
+		}
+	})
+}
+
+func TestRewardHandler_Create(t *testing.T) {
+	t.Run("returns 201 with created reward", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			createFn: func(_ context.Context, _ *rewardservice.CreateRewardRequest) (*rewarddomain.Reward, error) {
+				return &rewarddomain.Reward{ID: 7}, nil
+			},
+		})
+		w := rewardDo(t, handler, http.MethodPost, "/", map[string]any{"title": "Gold", "season_id": 1, "cost": 100})
+		if w.Code != http.StatusCreated {
+			t.Fatalf("expected 201, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 on malformed JSON", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{})
+		r := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("{bad"))
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 500 when service fails", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			createFn: func(_ context.Context, _ *rewardservice.CreateRewardRequest) (*rewarddomain.Reward, error) {
+				return nil, errors.New("db error")
+			},
+		})
+		w := rewardDo(t, handler, http.MethodPost, "/", map[string]any{"title": "x"})
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", w.Code)
+		}
+	})
+}
+
+func TestRewardHandler_Update(t *testing.T) {
+	t.Run("returns 200 with updated reward", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			updateFn: func(_ context.Context, id int64, _ *rewardservice.UpdateRewardRequest) (*rewarddomain.Reward, error) {
+				return &rewarddomain.Reward{ID: id}, nil
+			},
+		})
+		w := rewardDo(t, handler, http.MethodPatch, "/2", map[string]any{"title": "Silver"})
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 on invalid id", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{})
+		w := rewardDo(t, handler, http.MethodPatch, "/abc", map[string]any{})
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 404 when not found", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			updateFn: func(_ context.Context, _ int64, _ *rewardservice.UpdateRewardRequest) (*rewarddomain.Reward, error) {
+				return nil, rewardservice.ErrNotFound
+			},
+		})
+		w := rewardDo(t, handler, http.MethodPatch, "/1", map[string]any{})
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("expected 404, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 500 when service fails", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			updateFn: func(_ context.Context, _ int64, _ *rewardservice.UpdateRewardRequest) (*rewarddomain.Reward, error) {
+				return nil, errors.New("db error")
+			},
+		})
+		w := rewardDo(t, handler, http.MethodPatch, "/1", map[string]any{})
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", w.Code)
+		}
+	})
+}
+
+func TestRewardHandler_Delete(t *testing.T) {
+	t.Run("returns 204 on success", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{})
+		w := rewardDo(t, handler, http.MethodDelete, "/1", nil)
+		if w.Code != http.StatusNoContent {
+			t.Fatalf("expected 204, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 400 on invalid id", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{})
+		w := rewardDo(t, handler, http.MethodDelete, "/abc", nil)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("expected 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 409 when has relations", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			deleteFn: func(_ context.Context, _ int64) error {
+				return rewardservice.ErrHasRelations
+			},
+		})
+		w := rewardDo(t, handler, http.MethodDelete, "/1", nil)
+		if w.Code != http.StatusConflict {
+			t.Fatalf("expected 409, got %d", w.Code)
+		}
+	})
+
+	t.Run("returns 500 when service fails", func(t *testing.T) {
+		handler := newRewardHandler(&fakeRewardSvc{
+			deleteFn: func(_ context.Context, _ int64) error {
+				return errors.New("db error")
+			},
+		})
+		w := rewardDo(t, handler, http.MethodDelete, "/1", nil)
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("expected 500, got %d", w.Code)
+		}
+	})
+}

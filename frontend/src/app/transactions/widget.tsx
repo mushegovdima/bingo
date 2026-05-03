@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react'
 import { TransactionList } from '@/components/transactions/TransactionList'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useBalance } from '@/hooks/useBalance'
-import s from './transactions.module.scss'
 
 export default function TransactionsWidgetPage() {
   const { seasonId: seasonIdStr } = useParams<{ seasonId: string }>()
@@ -24,10 +23,10 @@ export default function TransactionsWidgetPage() {
           <ArrowLeft size={14} />
           Назад
         </Button>
-        <h1 className={s.title}>Баланс</h1>
+        <h1 className="m-0 text-2xl font-bold text-(--color-text)">Баланс</h1>
         {balanceLoading
           ? <SkeletonRoot className="h-6 w-20 rounded-full" />
-          : <Chip size="lg" color="accent" variant="soft">{(balance?.balance ?? 0).toLocaleString('ru-RU')} KC</Chip>
+          : <Chip size="lg" color="accent" variant="soft">{(balance?.balance ?? 0).toLocaleString('ru-RU')} C</Chip>
         }
       </div>
 

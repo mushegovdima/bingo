@@ -1,22 +1,23 @@
 
 
 import { CardContent, CardRoot, SkeletonRoot } from '@heroui/react'
-import s from '@/styles/widgets.module.scss'
+import { useSubmissions } from '@/hooks/useSubmissions'
+import { useSeasonTasks } from '@/hooks/useSeasonTasks'
 
 interface Props {
-  approvedCount: number
-  totalCount: number
-  isLoading: boolean
+  seasonId: number
 }
 
-/**
- * Счётчик выполненных задач БИНГО (submissions со статусом approved).
- */
-export function BingoWidget({ approvedCount, totalCount, isLoading }: Props) {
+export function BingoWidget({ seasonId }: Props) {
+  const { data: submissions, isLoading: submissionsLoading } = useSubmissions(seasonId)
+  const { data: tasks = [], isLoading: tasksLoading } = useSeasonTasks(seasonId)
+  const isLoading = submissionsLoading || tasksLoading
+  const approvedCount = submissions?.approvedCount ?? 0
+  const totalCount = tasks.filter((t) => t.is_active).length
   return (
-    <CardRoot className={s.card}>
+    <CardRoot className="bg-(--color-surface) border border-(--color-border) shadow-(--shadow-md) transition-[box-shadow,transform] duration-200 hover:shadow-(--shadow-xl) hover:-translate-y-1 cursor-default">
       <CardContent className="p-6 flex flex-col gap-2">
-        <span className={s.label}>
+        <span className="text-xs font-semibold uppercase tracking-widest text-(--color-text-muted)">
           Закрыто БИНГО
         </span>
 
@@ -27,16 +28,16 @@ export function BingoWidget({ approvedCount, totalCount, isLoading }: Props) {
           </div>
         ) : (
           <div className="flex items-baseline gap-1">
-            <span className={`text-5xl font-extrabold tabular-nums ${s.bingoValue}`}>
+            <span className="text-5xl font-extrabold tabular-nums text-(--color-success)">
               {approvedCount}
             </span>
-          <span className="text-2xl font-semibold text-slate-400">
+            <span className="text-2xl font-semibold text-slate-400">
               /{totalCount}
             </span>
           </div>
         )}
 
-        <span className={s.footer}>задач выполнено</span>
+        <span className="text-xs text-(--color-text-subtle)">задач выполнено</span>
       </CardContent>
     </CardRoot>
   )

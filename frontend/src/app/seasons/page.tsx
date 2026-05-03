@@ -52,7 +52,7 @@ function SeasonsContent() {
                   <Card.Title className={s.cardTitle}>{b.season.title}</Card.Title>
                 </Card.Header>
                 <Card.Content className={s.cardContent}>
-                  <span className={s.cardBalance}>{b.balance.toLocaleString('ru-RU')} KC</span>
+                  <span className={s.cardBalance}>{b.balance.toLocaleString('ru-RU')} C</span>
                 </Card.Content>
                 <Card.Footer className={s.cardFooter}>
                   <span className={s.cardMeta}>

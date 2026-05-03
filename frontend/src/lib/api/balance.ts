@@ -1,5 +1,5 @@
 import apiClient from './client'
-import { Balance, Transaction, SeasonMemberWithSeason } from '@/types'
+import { Balance, LeaderboardEntry, Transaction, SeasonMemberWithSeason } from '@/types'
 
 export const balanceApi = {
   getBalance: async (seasonId: number): Promise<Balance> => {
@@ -23,6 +23,16 @@ export const balanceApi = {
 
   joinSeason: async (seasonId: number): Promise<Balance> => {
     const res = await apiClient.post<Balance>(`/balance/${seasonId}/join`)
+    return res.data
+  },
+
+  getLeaderboard: async (seasonId: number): Promise<LeaderboardEntry[]> => {
+    const res = await apiClient.get<LeaderboardEntry[]>(`/balance/leaderboard/${seasonId}`)
+    return res.data
+  },
+
+  getFullLeaderboard: async (seasonId: number): Promise<LeaderboardEntry[]> => {
+    const res = await apiClient.get<LeaderboardEntry[]>(`/balance/leaderboard/${seasonId}/full`)
     return res.data
   },
 }

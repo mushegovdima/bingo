@@ -1,0 +1,162 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: bingo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d bingo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrator:
+    build:
+      context: ./api
+    command: ["./migrator", "-env", "${ENV:-dev}"]
+    env_file:
+      - ./api/${ENV:-dev}.env
+    environment:
+      DB_CONNECTION_STRING: postgres://postgres:password@db:5432/bingo?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  api:
+    build:
+      context: ./api
+    command: ["./api", "-env", "${ENV:-dev}"]
+    restart: unless-stopped
+    ports:
+      - "4010:4010"
+    env_file:
+      - ./api/${ENV:-dev}.env
+    environment:
+      DB_CONNECTION_STRING: postgres://postgres:password@db:5432/bingo?sslmode=disable
+      NOTIFIER_ADDR: notifier:50051
+    depends_on:
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+      notifier:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL
+        - VITE_TG_BOT_NAME
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+  notifier-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: notifier
+    ports:
+      - "5433:5432"
+    volumes:
+      - notifier_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d notifier"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  notifier-migrator:
+    build:
+      context: ./notifier
+    command: ["./migrator", "-env", "${ENV:-dev}"]
+    env_file:
+      - ./notifier/${ENV:-dev}.env
+    environment:
+      DB_CONNECTION_STRING: postgres://postgres:password@notifier-db:5432/notifier?sslmode=disable
+    depends_on:
+      notifier-db:
+        condition: service_healthy
+    restart: on-failure
+
+  notifier:
+    build:
+      context: ./notifier
+    command: ["./notifier", "-env", "${ENV:-dev}"]
+    restart: unless-stopped
+    ports:
+      - "50051:50051"
+    env_file:
+      - ./notifier/${ENV:-dev}.env
+    environment:
+      DB_CONNECTION_STRING: postgres://postgres:password@notifier-db:5432/notifier?sslmode=disable
+    depends_on:
+      notifier-db:
+        condition: service_healthy
+      notifier-migrator:
+        condition: service_completed_successfully
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    restart: unless-stopped
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    depends_on:
+      - api
+
+  loki:
+    image: grafana/loki:3.0.0
+    restart: unless-stopped
+    volumes:
+      - ./deploy/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki.yml
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    restart: unless-stopped
+    volumes:
+      - ./deploy/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/promtail.yml
+    depends_on:
+      - loki
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+      - loki
+
+volumes:
+  postgres_data:
+  notifier_db_data:
+  prometheus_data:
+  loki_data:
+  grafana_data:

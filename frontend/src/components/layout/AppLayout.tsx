@@ -13,7 +13,7 @@ export function AppLayout({ children }: Props) {
   return (
     <div className="app-layout">
       <AppNavbar />
-      <main className="flex-1 w-full max-w-6xl mx-auto px-3 py-3">
+      <main className="flex-1 w-full max-w-6xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
         {children}
       </main>
     </div>

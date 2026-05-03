@@ -2,7 +2,6 @@
 
 import { Chip } from '@heroui/react'
 import { Transaction } from '@/types'
-import s from './TransactionItem.module.scss'
 
 const REASON_LABEL: Record<Transaction['reason'], string> = {
   event: 'Мероприятие',
@@ -26,9 +25,9 @@ export function TransactionItem({ transaction }: Props) {
   )
 
   return (
-    <div className={s.item}>
+    <div className="flex items-center gap-4 py-3 border-b border-(--color-border) last:border-b-0">
       {/* Date */}
-      <span className={s.date}>
+      <span className="text-(--color-text-muted) text-xs tabular-nums w-32 shrink-0">
         {formattedDate}
       </span>
 
@@ -43,16 +42,14 @@ export function TransactionItem({ transaction }: Props) {
       </Chip>
 
       {/* Description */}
-      <span className={s.description}>
+      <span className="text-(--color-text-secondary) text-sm flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
         {transaction.ref_title || REASON_LABEL[transaction.reason]}
       </span>
 
       {/* Amount */}
-      <span
-        className={`${s.amount} ${isCredit ? s.credit : s.debit}`}
-      >
+      <span className={`text-sm font-bold tabular-nums shrink-0 ${isCredit ? 'text-(--color-success)' : 'text-(--color-danger)'}`}>
         {isCredit ? '+' : ''}
-        {transaction.amount.toLocaleString('ru-RU')} KC
+        {transaction.amount.toLocaleString('ru-RU')} C
       </span>
     </div>
   )

@@ -6,7 +6,6 @@ import { useMyBalances } from '@/hooks/useMyBalances'
 import { useActiveSeasons } from '@/hooks/useActiveSeasons'
 import { useJoinSeason } from '@/hooks/useJoinSeason'
 import type { Season } from '@/types'
-import s from './SeasonPicker.module.scss'
 import { Check, ChevronDown } from 'lucide-react'
 
 interface Props {
@@ -37,14 +36,14 @@ export function SeasonPicker({ currentSeasonId, currentTitle }: Props) {
   const triggerChip = (
     <Chip size="lg" variant="primary">
       <Chip.Label>
-        <span className={s.seasonName}>{currentTitle}</span>
+        <span className="text-(--color-primary) font-semibold">{currentTitle}</span>
       </Chip.Label>
-      { showDropDown && <ChevronDown size={16} className={s.seasonName}/> }
+      { showDropDown && <ChevronDown size={16} className="text-(--color-primary) font-semibold"/> }
     </Chip>
   )
 
   return (
-    <div className={s.root}>
+    <div className="flex justify-center">
       <Popover isOpen={isJoining ? true : undefined}>
         <Popover.Trigger>
           <Badge.Anchor>
@@ -57,29 +56,31 @@ export function SeasonPicker({ currentSeasonId, currentTitle }: Props) {
           </Badge.Anchor>
         </Popover.Trigger>
 
-        <Popover.Content className={s.content}>
+        <Popover.Content className="min-w-60 max-w-80">
           <Popover.Dialog>
             {isLoading ? (
-              <div className={s.spinnerWrap}>
+              <div className="flex items-center justify-center p-4">
                 <Spinner size="sm" />
               </div>
             ) : (
               <>
                 {/* All joined seasons */}
                 {allBalances.length > 0 && (
-                  <div className={s.section}>
+                  <div className="flex flex-col gap-1 max-h-[400px] overflow-y-auto overscroll-contain">
                     {allBalances.map((b) => {
                       const isCurrent = b.season_id === currentSeasonId
                       return (
                         <Button
                           key={b.id}
-                          className={`${s.seasonRow}${isCurrent ? ` ${s.seasonRowCurrent}` : ''}`}
+                          className={`flex items-center justify-between gap-4 px-3 py-2 rounded-lg w-full text-left transition-colors duration-100 hover:bg-(--color-border) ${
+                            isCurrent ? '!bg-[color-mix(in_srgb,var(--color-primary)_8%,transparent)]' : 'bg-transparent'
+                          }`}
                           onClick={() => navigate(`/d/${b.season_id}`)}
                         >
-                          <span className={s.rowTitle}>{b.season.title}</span>
-                          <span className={s.rowRight}>
-                            <span className={s.rowBalance}>{b.balance.toLocaleString('ru-RU')} KC</span>
-                            <Check size={14} className={`${s.checkIcon}${isCurrent ? '' : ` ${s.checkIconHidden}`}`} />
+                          <span className="text-sm font-medium text-(--color-text) min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{b.season.title}</span>
+                          <span className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-[0.8125rem] font-semibold text-(--color-coin) whitespace-nowrap shrink-0">{b.balance.toLocaleString('ru-RU')} баллов</span>
+                            <Check size={14} className={`text-(--color-primary) shrink-0 ${isCurrent ? 'visible' : 'invisible'}`} />
                           </span>
                         </Button>
                       )
@@ -90,17 +91,17 @@ export function SeasonPicker({ currentSeasonId, currentTitle }: Props) {
                 {/* Unjoined seasons as chips */}
                 {unjoinedSeasons.length > 0 && (
                   <>
-                    {allBalances.length > 0 && <div className={s.divider} />}
-                    <p className={s.sectionLabel}>Доступные сезоны</p>
-                    <div className={s.chipsRow}>
+                    {allBalances.length > 0 && <div className="h-px bg-(--color-border) my-1 mx-2" />}
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-(--color-text-subtle) px-4 py-1">Доступные сезоны</p>
+                    <div className="flex flex-col gap-1">
                       {unjoinedSeasons.map((c) => (
                         <div
                           key={c.id}
-                          className={s.seasonRow}
+                          className="flex items-center justify-between gap-4 px-3 py-2 rounded-lg w-full text-left transition-colors duration-100 hover:bg-(--color-border) cursor-pointer"
                           onClick={isJoining ? undefined : () => handleJoin(c.id)}
                         >
-                          <span className={s.rowTitle}>{c.title}</span>
-                          <Button size="sm" variant='primary' className={s.joinBtn} isDisabled={isJoining} onClick={isJoining ? undefined : () => handleJoin(c.id)}>
+                          <span className="text-sm font-medium text-(--color-text) min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">{c.title}</span>
+                          <Button size="sm" variant='primary' isDisabled={isJoining} onClick={isJoining ? undefined : () => handleJoin(c.id)}>
                             Начать
                           </Button>
                         </div>
@@ -110,7 +111,7 @@ export function SeasonPicker({ currentSeasonId, currentTitle }: Props) {
                 )}
 
                 {allBalances.length === 0 && unjoinedSeasons.length === 0 && (
-                  <p className={s.empty}>Нет других сезонов</p>
+                  <p className="text-sm text-(--color-text-muted) text-center py-4 px-3">Нет других сезонов</p>
                 )}
               </>
             )}

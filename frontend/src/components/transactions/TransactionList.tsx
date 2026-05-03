@@ -5,7 +5,6 @@ import { Transaction } from '@/types'
 import { TransactionItem } from './TransactionItem'
 import { TransactionFiltersPanel } from './TransactionFiltersPanel'
 import { TransactionFilters } from '@/hooks/useTransactions'
-import s from './TransactionList.module.scss'
 
 interface Props {
   transactions: Transaction[] | undefined
@@ -27,7 +26,7 @@ export function TransactionList({
     <div className="flex flex-col gap-4">
       <TransactionFiltersPanel filters={filters} onChange={onFilterChange} />
 
-      <CardRoot className={s.card}>
+      <CardRoot className="bg-(--color-surface) border border-(--color-border) shadow-(--shadow-sm)">
         <CardContent className="p-0 sm:p-2">
           {isLoading && (
             <div className="flex items-center justify-center py-12">
@@ -36,7 +35,7 @@ export function TransactionList({
           )}
 
           {!isLoading && (!transactions || transactions.length === 0) && (
-            <p className={s.empty}>
+            <p className="text-(--color-text-muted) text-center py-12">
               Операций не найдено
             </p>
           )}
